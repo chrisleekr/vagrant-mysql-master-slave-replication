@@ -9,9 +9,10 @@ Note: This project is created for just practice. Not suitable for production use
 * VirtualBox: <https://www.virtualbox.org/>
 
 # Usage
-
+```
     $ git clone https://github.com/chrisleekr/vagrant-mysql-master-slave-replication.git
     $ vagrant up
+```
    
  # Environments
  * VM Box: Ubuntu/prcise64
