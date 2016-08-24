@@ -2,3 +2,5 @@
 .vagrant/*
 data/master/*
 data/slave/*
+!data/master/.gitkeep
+!data/slave/.gitkeep
