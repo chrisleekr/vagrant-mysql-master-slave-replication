@@ -49,21 +49,21 @@ If having the error message 'The guest additions on this VM do not match the ins
     * Set up timezone to Australia/Melbourne
     * Configure firewall to enable 22/3306 ports (may not need?)
     * Install MySQL server and client
-    * Create database and grant privileges to root user
-    * Set up root user's host to be accessible from any remote 
     * Configure vagrant synced folder as persistent directory and move initial database file to persistent directory
     * Copy config/my-slave.cnf to /etc/mysql/conf.d/my_override.cnf, which will override default MySQL configurations
+    * Create database and grant privileges to root user
+    * Set up root user's host to be accessible from any remote 
     * Restart MySQL service
 2. MySQL master machine will be launched following.
     * Vagrant provisioning script will update package list and upgrade system (Currently commented out. If need, uncomment it)
     * Set up timezone to Australia/Melbourne
     * Configure firewall to enable 22/3306 ports (may not need?)
     * Install MySQL server and client
+    * Configure vagrant synced folder as persistent directory and move initial database file to persistent directory
+    * Copy config/my-master.cnf to /etc/mysql/conf.d/my_override.cnf, which will override default MySQL configurations
     * Create database and grant privileges to root user
     * Set up root user's host to be accessible from any remote 
     * Create replication user in MySQL master machine
-    * Configure vagrant synced folder as persistent directory and move initial database file to persistent directory
-    * Copy config/my-master.cnf to /etc/mysql/conf.d/my_override.cnf, which will override default MySQL configurations
     * Restart MySQL service
     * Install sshpass to access ssh to MySQL slave machine
     * Check slave machine is up and running and MySQL is configured by checking /var/log/setup_mysql
