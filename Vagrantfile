@@ -4,11 +4,14 @@
 Vagrant.configure("2") do |config|
   config.vm.synced_folder ".", "/vagrant", mount_options: ["dmode=700,fmode=600"]
   config.vm.synced_folder "./config", "/vagrant/config", mount_options: ["dmode=755,fmode=755"]
-
+  
   # run slave first
   config.vm.define "mysqlslave" do |mysqlslave|
     mysqlslave.vm.box = "ubuntu/precise64"
     mysqlslave.vm.hostname = 'mysqlslave'
+    mysqlslave.vm.synced_folder "./data/slave", "/var/lib/mysql_vagrant" , id: "mysql",
+    owner: 108, group: 113,  # owner: "mysql", group: "mysql",
+    mount_options: ["dmode=775,fmode=664"]
 
     mysqlslave.vm.network :private_network, ip: "192.168.100.12"
 
@@ -24,6 +27,9 @@ Vagrant.configure("2") do |config|
   config.vm.define "mysqlmaster" do |mysqlmaster|
     mysqlmaster.vm.box = "ubuntu/precise64"
     mysqlmaster.vm.hostname = 'mysqlmaster'
+    mysqlmaster.vm.synced_folder "./data/master", "/var/lib/mysql_vagrant" , id: "mysql",
+    owner: 108, group: 113,  # owner: "mysql", group: "mysql",
+    mount_options: ["dmode=775,fmode=664"]
 
     mysqlmaster.vm.network :private_network, ip: "192.168.100.11"
 

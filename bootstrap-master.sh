@@ -4,12 +4,13 @@
 DBNAME=sample
 DBUSER=root
 DBPASSWD=root
+DBDIRPATH=/var/lib/mysql_vagrant
 MASTER_IP='192.168.100.11'
 REPLICA_IP='192.168.100.12'
 REPLICA_SSH_USER='vagrant'
 REPLICA_SSH_PASS='vagrant'
 
-echo -e "\n--- Updating package list and upgrade system... --- \n"
+#echo -e "\n--- Updating package list and upgrade system... --- \n"
 # Download and Install the Latest Updates for the OS
 #sudo apt-get update && sudo apt-get upgrade -y
 
@@ -42,18 +43,37 @@ then
 	sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password $DBPASSWD"
 	sudo apt-get -y install mysql-server mysql-client 
 
+
 	echo -e "\n--- Setting up MySQL user and db ---\n"
-	sudo mysql -uroot -p$DBPASSWD -e "CREATE DATABASE $DBNAME" 
+	sudo mysql -uroot -p$DBPASSWD -e "CREATE DATABASE IF NOT EXISTS $DBNAME" 
 	sudo mysql -uroot -p$DBPASSWD -e "grant all privileges on $DBNAME.* to '$DBUSER'@'localhost' identified by '$DBPASSWD'"
 
 	# Set up root user's host to be accessible from any remote
 	echo -e "\n--- Set up root user's host to be accessible from any remote ---\n"
 	sudo mysql -uroot -p$DBPASSWD -e 'USE mysql; UPDATE `user` SET `Host`="%" WHERE `User`="root" AND `Host`="localhost"; DELETE FROM `user` WHERE `Host` != "%" AND `User`="root"; FLUSH PRIVILEGES;'
 
+	# Create replication user in master machine
+	echo -e "\n---- Create replication user in master machine\n";
+	mysql -uroot -p$DBPASSWD -e "CREATE USER 'repl'@'%' IDENTIFIED BY 'mysqluser';GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';FLUSH PRIVILEGES;"
+
+	# Move initial database file to persistent directory
+	echo -e "\n--- Move initial database file to persistent directory ---\n"
+
+	sudo service mysql stop
+
+	sudo chown -R mysql:mysql $DBDIRPATH
+	sudo rm -rf $DBDIRPATH/*
+	sudo cp -r -p /var/lib/mysql/* $DBDIRPATH
+
+	sudo mv /var/lib/mysql /var/lib/mysql.bak
+	echo "alias /var/lib/mysql/ -> $DBDIRPATH," | sudo tee -a /etc/apparmor.d/tunables/alias
+	sudo /etc/init.d/apparmor reload
+
+	sudo cp /vagrant/config/master/my-master.cnf /etc/mysql/conf.d/my_override.cnf
 	touch /var/log/setup_mysql
 fi
 
-sudo cp /vagrant/config/my-master.cnf /etc/mysql/conf.d/my_override.cnf
+
 sudo service mysql restart
 
 if [ ! -f /var/log/setup_replication ]
@@ -66,7 +86,7 @@ then
 	IS_HOST_AVAILABLE=false
 	while ! $IS_HOST_AVAILABLE 
 	do 
-		echo -e "\n---- Checking slave access\n"
+		echo -e "\n---- Checking slave connection\n"
 		SLAVE_ALIVE=$(ping -s 64 "$REPLICA_IP" -c 1 | grep packet | awk '{print $(NF-4)}')
 		if [ $SLAVE_ALIVE == "0%" ]
 		then
@@ -94,9 +114,7 @@ then
 		fi
 	done
 
-	# Create replication user in master machine
-	echo -e "\n---- Create replication user in master machine\n";
-	mysql -uroot -p$DBPASSWD -e "CREATE USER 'repl'@'%' IDENTIFIED BY 'mysqluser';GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';FLUSH PRIVILEGES;"
+	
 	
 	# Get database dump
 	echo -e "\n---- Dump sample database to SQL\n";
@@ -118,10 +136,15 @@ then
 	echo -e "\n---- Change master host to slave log file and position in slave machine\n";
 	sshpass -p "$REPLICA_SSH_PASS" ssh -o StrictHostKeyChecking=no $REPLICA_SSH_USER@$REPLICA_IP "mysql -uroot -p$DBPASSWD -e \"SLAVE STOP;CHANGE MASTER TO MASTER_HOST='$MASTER_IP', MASTER_USER='repl', MASTER_PASSWORD='mysqluser', MASTER_LOG_FILE='$CURRENT_LOG', MASTER_LOG_POS=$CURRENT_POS;START SLAVE;\""
 
+	# Commented out to run replication scripts every provision
+	#touch /var/log/setup_replication
+fi
+
+
+if [ ! -f /var/log/setup_replication_test ]
+then
 	echo -e "\n---- Testing replication\n";
 	mysql -uroot -p$DBPASSWD -e "use sample;create table users(id int not null auto_increment, primary key(id), username varchar(30) not null);insert into users (username) values ('foo');insert into users (username) values ('bar');"
 
-	touch /var/log/setup_replication
-
+	touch /var/log/setup_replication_test
 fi
-
